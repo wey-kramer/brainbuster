@@ -1,7 +1,9 @@
 import random
 import json
 
-# Beispiel-Quizfragen
+
+#Test-Änderung
+
 QUESTIONS = {
     "Allgemeinwissen": [
         {
@@ -46,7 +48,7 @@ def show_help():
     print("- Beantworte die Fragen, indem du die richtige Antwort eingibst")
     print("- Für jede richtige Antwort gibt es Punkte\n")
 
-
+#Ich war hier
 # Spiel starten
 print("Willkommen zu BrainBuster! Wähle eine Kategorie:")
 kategorien = list(QUESTIONS.keys())
