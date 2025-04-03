@@ -49,6 +49,7 @@ def show_help():
     print("- Für jede richtige Antwort gibt es Punkte\n")
 
 #Ich war hier
+
 # Spiel starten
 print("Willkommen zu BrainBuster! Wähle eine Kategorie:")
 kategorien = list(QUESTIONS.keys())
