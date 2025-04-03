@@ -1,5 +1,7 @@
 import random
 import json
+from holeKategorien import hole_kategorien
+from kategorieWahl import wähle_kategorie
 
 
 #Test-Änderung
@@ -52,18 +54,18 @@ def show_help():
 
 # Spiel starten
 print("Willkommen zu BrainBuster! Wähle eine Kategorie:")
-kategorien = list(QUESTIONS.keys())
-for i, kategorie in enumerate(kategorien):
-    print(f"{i + 1}. {kategorie}")
+kategorien = hole_kategorien()
+wahl = wähle_kategorie(kategorien)
 
-wahl = int(input("Gib die Nummer der gewünschten Kategorie ein: ")) - 1
-if 0 <= wahl < len(kategorien):
-    ausgewaehlte_kategorie = kategorien[wahl]
-    print(f"\nKategorie: {ausgewaehlte_kategorie}\n")
-    fragen = QUESTIONS[ausgewaehlte_kategorie]
-    random.shuffle(fragen)
+for kategorie in kategorien:
+    if kategorie[0] == wahl:
+        ausgewaehlte_kategorie = kategorie[1]
 
-    for frage in fragen:
+print(f"\nKategorie: {ausgewaehlte_kategorie}\n")
+fragen = QUESTIONS[ausgewaehlte_kategorie]
+random.shuffle(fragen)
+
+for frage in fragen:
         print(frage["frage"])
         for idx, option in enumerate(frage["optionen"], start=1):
             print(f"{idx}. {option}")
@@ -74,8 +76,7 @@ if 0 <= wahl < len(kategorien):
             punkte += 10
         else:
             print(f"Falsch! Die richtige Antwort wäre: {frage['antwort']}\n")
-else:
-    print("Ungültige Auswahl. Spiel wird beendet.")
+
 
 # Rangliste anzeigen
 print(f"Spiel beendet! Deine Punktzahl: {punkte}\n")
