@@ -1,10 +1,8 @@
 import mysql.connector
+
+
 def hole_kategorien():
-    mydb = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        database="quizspiel"
-    )
+    mydb = mysql.connector.connect(host="localhost", user="root", database="quizspiel")
 
     mycursor = mydb.cursor()
 

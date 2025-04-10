@@ -20,6 +20,7 @@ def show_help():
     print("- Beantworte die Fragen, indem du die richtige Antwort eingibst")
     print("- Für jede richtige Antwort gibt es Punkte\n")
 
+
 # Spiel starten
 print("Willkommen zu BrainBuster!\n")
 kategorien = hole_kategorien()
@@ -34,19 +35,19 @@ print(f"\nKategorie: {ausgewaehlte_kategorie}\n")
 fragen = hole_fragen(wahl)
 random.shuffle(fragen)
 for frage in fragen:
-        print(frage[0] + "\n")
-        antworten = frage[1:5]
-        shuffled_antworten = random.sample(antworten, len(antworten))
+    print(frage[0] + "\n")
+    antworten = frage[1:5]
+    shuffled_antworten = random.sample(antworten, len(antworten))
 
-        for antwort in shuffled_antworten:
-             print(antwort)
-        benutzerAntwort = input("Deine Antwort: ")
+    for antwort in shuffled_antworten:
+        print(antwort)
+    benutzerAntwort = input("Deine Antwort: ")
 
-        if frage[1] == benutzerAntwort:
-            print("Richtig! Du erhältst 10 Punkte.\n")
-            punkte += 10
-        else:
-            print(f"Falsch! Die richtige Antwort wäre: {frage[1]}\n")
+    if frage[1] == benutzerAntwort:
+        print("Richtig! Du erhältst 10 Punkte.\n")
+        punkte += 10
+    else:
+        print(f"Falsch! Die richtige Antwort wäre: {frage[1]}\n")
 
 
 # Rangliste anzeigen
