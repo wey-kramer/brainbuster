@@ -6,28 +6,13 @@ app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = 'supersecretkey'  # Für Session-Management
 
 # Verbindung zur MySQL-Datenbank
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",  
+    database="quizspiel"
+)
+cursor = conn.cursor(dictionary=True)  # Dictionary-Cursor für bessere Verarbeitung
 
-# conn = mysql.connector.connect(
-#     host="localhost",
-#     user="root",
-#     password="",  
-#     database="quizgame"
-# )
-# cursor = conn.cursor()
-
-# Fragenkatalog
-QUESTIONS = {
-    "Allgemeinwissen": [
-        {"frage": "Was ist die Hauptstadt von Deutschland?", "optionen": ["Berlin", "München", "Hamburg", "Köln"], "antwort": "Berlin"},
-        {"frage": "Wie viele Planeten hat unser Sonnensystem?", "optionen": ["7", "8", "9", "10"], "antwort": "8"}
-    ],
-    "Technologie": [
-        {"frage": "Welche Programmiersprache wird oft für Data Science genutzt?", "optionen": ["Java", "Python", "C++", "Ruby"], "antwort": "Python"},
-        {"frage": "Was bedeutet HTML?", "optionen": ["HyperText Markup Language", "High Tech Modern Language", "Hyper Transfer Machine Learning", "Home Tool Markup Language"], "antwort": "HyperText Markup Language"}
-    ]
-}
-
-# Hauptseite (Frontend wird geladen)
 @app.route('/')
 def index():
     return render_template('view.html')
@@ -37,37 +22,123 @@ def index():
 def login():
     data = request.json
     username = data.get("username")
+    password = data.get("password", "")  # Optional, falls du in Zukunft Passwörter implementieren möchtest
 
-    cursor.execute("SELECT * FROM users WHERE name = %s", (username,))
+    cursor.execute("SELECT * FROM benutzer WHERE NAME = %s", (username,))
     user = cursor.fetchone()
 
     if user:
-        return jsonify({"success": False, "message": "Name existiert bereits. Wähle einen anderen."})
+        # Benutzer existiert, prüfe ob Passwort benötigt wird
+        if "PASSWORT" in user and user["PASSWORT"] and user["PASSWORT"] != password:
+            return jsonify({"success": False, "message": "Falsches Passwort."})
+        
+        session['username'] = username
+        session['user_id'] = user["USER_ID"]
+        return jsonify({"success": True, "message": "Willkommen zurück, " + username + "!"})
+    
+    # Neuen Benutzer anlegen
+    try:
+        cursor.execute("INSERT INTO benutzer (NAME, PASSWORT, PUNKTE, ADMIN) VALUES (%s, %s, %s, %s)", 
+                      (username, password, 0, 0))
+        conn.commit()
+        
+        # Hole die erzeugte ID
+        cursor.execute("SELECT USER_ID FROM benutzer WHERE NAME = %s", (username,))
+        user_id = cursor.fetchone()["USER_ID"]
+        
+        session['username'] = username
+        session['user_id'] = user_id
+        return jsonify({"success": True, "message": "Willkommen, " + username + "!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": f"Fehler bei der Registrierung: {str(e)}"})
 
-    cursor.execute("INSERT INTO users (name, score) VALUES (%s, %s)", (username, 0))
-    conn.commit()
-    session['username'] = username
-    return jsonify({"success": True, "message": "Willkommen, " + username + "!"})
+# Kategorien-Route
+@app.route('/kategorien', methods=['GET'])
+def get_kategorien():
+    cursor.execute("SELECT * FROM kategorien")
+    kategorien = cursor.fetchall()
+    return jsonify({"success": True, "kategorien": kategorien})
 
-# Quiz-Route
-@app.route('/quiz', methods=['GET'])
-def quiz():
-    kategorie = random.choice(list(QUESTIONS.keys()))
-    fragen = random.sample(QUESTIONS[kategorie], len(QUESTIONS[kategorie]))
-    return jsonify({"kategorie": kategorie, "fragen": fragen})
+# Fragen nach Kategorie holen
+@app.route('/fragen/<int:kategorie_id>', methods=['GET'])
+def get_fragen(kategorie_id):
+    try:
+        cursor.execute("""
+            SELECT FRA_ID, FRAGE, RICANT, FALANT1, FALANT2, FALANT3 
+            FROM fragen 
+            WHERE KAT_ID = %s
+        """, (kategorie_id,))
+        fragen_raw = cursor.fetchall()
+        
+        # Fragen formatieren
+        fragen = []
+        for frage in fragen_raw:
+            # Optionen mischen
+            optionen = [frage["RICANT"], frage["FALANT1"], frage["FALANT2"], frage["FALANT3"]]
+            random.shuffle(optionen)
+            
+            fragen.append({
+                "id": frage["FRA_ID"],
+                "frage": frage["FRAGE"],
+                "optionen": optionen,
+                "antwort": frage["RICANT"]
+            })
+            
+        # Kategoriename holen
+        cursor.execute("SELECT NAME FROM kategorien WHERE KAT_ID = %s", (kategorie_id,))
+        kategorie = cursor.fetchone()
+        kategorie_name = kategorie["NAME"] if kategorie else "Unbekannte Kategorie"
+        
+        # Zufällige Auswahl und Begrenzung der Fragenzahl (optional)
+        if len(fragen) > 5:
+            fragen = random.sample(fragen, 5)
+        
+        return jsonify({
+            "success": True, 
+            "kategorie": kategorie_name, 
+            "fragen": fragen
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Fehler beim Laden der Fragen: {str(e)}"})
 
 # Score speichern
 @app.route('/score', methods=['POST'])
 def save_score():
-    if 'username' not in session:
+    if 'user_id' not in session:
         return jsonify({"success": False, "message": "Nicht eingeloggt!"})
 
     data = request.json
     score = data.get("score", 0)
-    username = session['username']
-    cursor.execute("UPDATE users SET score = %s WHERE name = %s", (score, username))
-    conn.commit()
-    return jsonify({"success": True, "message": "Score gespeichert!"})
+    user_id = session['user_id']
+    
+    try:
+        # Aktuelle Punkte holen
+        cursor.execute("SELECT PUNKTE FROM benutzer WHERE USER_ID = %s", (user_id,))
+        current_score = cursor.fetchone()["PUNKTE"]
+        
+        # Neue Punkte = aktuelle + gewonnene
+        new_score = current_score + score
+        
+        cursor.execute("UPDATE benutzer SET PUNKTE = %s WHERE USER_ID = %s", (new_score, user_id))
+        conn.commit()
+        return jsonify({
+            "success": True, 
+            "message": "Score gespeichert!",
+            "altePunkte": current_score,
+            "neuePunkte": new_score
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": f"Fehler beim Speichern: {str(e)}"})
+
+# Highscore-Route
+@app.route('/highscores', methods=['GET'])
+def get_highscores():
+    cursor.execute("SELECT NAME, PUNKTE FROM benutzer ORDER BY PUNKTE DESC LIMIT 10")
+    highscores = cursor.fetchall()
+    return jsonify({"success": True, "highscores": highscores})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

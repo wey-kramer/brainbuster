@@ -12,28 +12,38 @@
             background-color: #f4f4f4;
             padding: 20px;
         }
-        #login-container, #quiz-container, #result {
+        #login-container, #category-container, #quiz-container, #result, #highscore-container {
             background: white;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
-            margin: auto;
+            width: 400px;
+            margin: 20px auto;
         }
         input, button {
             width: 100%;
             padding: 10px;
             margin: 10px 0;
-            border: none;
+            border: 1px solid #ddd;
             border-radius: 5px;
         }
         button {
             background-color: #28a745;
             color: white;
             cursor: pointer;
+            border: none;
         }
         button:hover {
             background-color: #218838;
+        }
+        .category-btn {
+            background-color: #007bff;
+            margin: 5px;
+            width: calc(50% - 10px);
+            display: inline-block;
+        }
+        .category-btn:hover {
+            background-color: #0056b3;
         }
         #question-box button {
             display: block;
@@ -45,96 +55,302 @@
         #question-box button:hover {
             background-color: #0056b3;
         }
+        .progress-container {
+            margin: 15px 0;
+            background-color: #eee;
+            border-radius: 5px;
+            height: 20px;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #28a745;
+            border-radius: 5px;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+            transition: width 0.3s;
+        }
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 15px 0;
+        }
+        #highscore-list {
+            list-style-type: none;
+            padding: 0;
+            text-align: left;
+        }
+        #highscore-list li {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #highscore-list li:nth-child(odd) {
+            background-color: #f0f0f0;
+        }
+        .rank-1 {
+            background-color: #ffd700 !important;
+        }
+        .rank-2 {
+            background-color: #c0c0c0 !important;
+        }
+        .rank-3 {
+            background-color: #cd7f32 !important;
+        }
     </style>
 </head>
 <body>
 
     <div id="login-container">
-        <h2>Login</h2>
+        <h2>Quizspiel Login</h2>
         <form id="login-form">
             <input type="text" id="username" placeholder="Gib deinen Namen ein" required>
+            <input type="password" id="password" placeholder="Passwort (optional)">
             <button type="submit">Anmelden</button>
         </form>
     </div>
 
+    <div id="category-container" style="display: none;">
+        <h2>Wähle eine Kategorie</h2>
+        <div id="category-buttons"></div>
+    </div>
+
     <div id="quiz-container" style="display: none;">
         <h2 id="category-title"></h2>
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar" style="width: 0%">0%</div>
+        </div>
         <div id="question-box"></div>
-        <button onclick="nextQuestion()">Nächste Frage</button>
+        <div class="score">Punkte: <span id="current-score">0</span></div>
+        <button id="next-btn" onclick="nextQuestion()" style="display: none;">Nächste Frage</button>
     </div>
-    <div id="result" style="display: none;"></div>
+
+    <div id="result" style="display: none;">
+        <h2>Quiz beendet!</h2>
+        <div class="score">Deine Punkte: <span id="final-score">0</span></div>
+        <div id="score-change"></div>
+        <button onclick="showCategories()">Neues Spiel</button>
+        <button onclick="showHighscores()">Highscores</button>
+    </div>
+
+    <div id="highscore-container" style="display: none;">
+        <h2>Highscores</h2>
+        <ul id="highscore-list"></ul>
+        <button onclick="showCategories()">Zurück zum Spiel</button>
+    </div>
 
     <script>
+        // Globale Variablen
         let questions = [];
         let currentQuestionIndex = 0;
         let score = 0;
+        let answeredCurrentQuestion = false;
+        let totalQuestions = 0;
 
+        // Event-Listener für Login-Formular
         document.getElementById("login-form").addEventListener("submit", function(event) {
             event.preventDefault();
             let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
+            
             fetch("/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username: username })
+                body: JSON.stringify({ username: username, password: password })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Weiter zum Quiz
-                    loadQuiz();
+                    // Login-Container ausblenden
+                    document.getElementById("login-container").style.display = "none";
+                    // Kategorien laden und anzeigen
+                    loadCategories();
                 } else {
                     alert(data.message);
                 }
             });
         });
 
-
-        function loadQuiz() {
-            fetch("/quiz")
+        // Kategorien laden
+        function loadCategories() {
+            fetch("/kategorien")
             .then(response => response.json())
             .then(data => {
-                document.getElementById("category-title").innerText = "Kategorie: " + data.kategorie;
-                questions = data.fragen;
-                showQuestion();
+                if (data.success) {
+                    let categoryButtons = document.getElementById("category-buttons");
+                    categoryButtons.innerHTML = "";
+                    
+                    data.kategorien.forEach(category => {
+                        let button = document.createElement("button");
+                        button.className = "category-btn";
+                        button.textContent = category.NAME;
+                        button.onclick = function() {
+                            loadQuizByCategory(category.KAT_ID, category.NAME);
+                        };
+                        categoryButtons.appendChild(button);
+                    });
+                    
+                    // Kategorie-Container anzeigen
+                    document.getElementById("category-container").style.display = "block";
+                }
             });
         }
 
+        // Quiz für ausgewählte Kategorie laden
+        function loadQuizByCategory(categoryId, categoryName) {
+            fetch(`/fragen/${categoryId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Kategorie-Container ausblenden
+                    document.getElementById("category-container").style.display = "none";
+                    // Quiz-Container einblenden
+                    document.getElementById("quiz-container").style.display = "block";
+                    
+                    // Quiz-Daten setzen
+                    document.getElementById("category-title").innerText = "Kategorie: " + data.kategorie;
+                    questions = data.fragen;
+                    totalQuestions = questions.length;
+                    currentQuestionIndex = 0;
+                    score = 0;
+                    document.getElementById("current-score").innerText = score;
+                    
+                    // Erste Frage anzeigen
+                    showQuestion();
+                }
+            });
+        }
+
+        // Frage anzeigen
         function showQuestion() {
+            // Progress-Bar aktualisieren
+            let progressPercentage = Math.round((currentQuestionIndex / totalQuestions) * 100);
+            let progressBar = document.getElementById("progress-bar");
+            progressBar.style.width = progressPercentage + "%";
+            progressBar.innerText = progressPercentage + "%";
+            
             if (currentQuestionIndex >= questions.length) {
                 saveScore();
                 return;
             }
+            
+            // Next-Button ausblenden bis Antwort gegeben wird
+            document.getElementById("next-btn").style.display = "none";
+            answeredCurrentQuestion = false;
+            
             let questionData = questions[currentQuestionIndex];
             let questionBox = document.getElementById("question-box");
             questionBox.innerHTML = `<p>${questionData.frage}</p>`;
+            
             questionData.optionen.forEach((option, index) => {
                 questionBox.innerHTML += `<button onclick="checkAnswer('${option}', '${questionData.antwort}')">${option}</button>`;
             });
         }
 
+        // Antwort prüfen
         function checkAnswer(selected, correct) {
+            if (answeredCurrentQuestion) return; // Verhindert mehrfaches Antworten
+            
+            answeredCurrentQuestion = true;
+            
+            let buttons = document.querySelectorAll("#question-box button");
+            buttons.forEach(button => {
+                if (button.innerText === correct) {
+                    button.style.backgroundColor = "#28a745";  // Richtige Antwort grün markieren
+                } else if (button.innerText === selected) {
+                    button.style.backgroundColor = button.innerText === correct ? "#28a745" : "#dc3545"; // Falsche Antwort rot markieren
+                }
+                button.disabled = true;
+            });
+            
             if (selected === correct) {
                 score += 10;
+                document.getElementById("current-score").innerText = score;
+                setTimeout(() => alert("Richtig! +10 Punkte"), 100);
+            } else {
+                setTimeout(() => alert("Falsch! Die richtige Antwort ist: " + correct), 100);
             }
+            
+            // Next-Button einblenden
+            document.getElementById("next-btn").style.display = "block";
+            
+            // Automatisch zur nächsten Frage, wenn letzte Frage
+            if (currentQuestionIndex === questions.length - 1) {
+                setTimeout(() => saveScore(), 1000);
+            }
+        }
+
+        // Nächste Frage anzeigen
+        function nextQuestion() {
             currentQuestionIndex++;
             showQuestion();
         }
 
+        // Score speichern
         function saveScore() {
             fetch("/score", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ score: score })
-            }).then(response => response.json())
+            })
+            .then(response => response.json())
             .then(data => {
-                document.getElementById("quiz-container").style.display = "none";
-                document.getElementById("result").innerText = `Spiel beendet! Dein Score: ${score}`;
-                document.getElementById("result").style.display = "block";
+                if (data.success) {
+                    document.getElementById("quiz-container").style.display = "none";
+                    document.getElementById("final-score").innerText = score;
+                    
+                    // Punkte-Änderung anzeigen
+                    let scoreChange = document.getElementById("score-change");
+                    if (data.altePunkte !== undefined && data.neuePunkte !== undefined) {
+                        scoreChange.innerHTML = `
+                            <p>Vorherige Gesamtpunkte: ${data.altePunkte}</p>
+                            <p>Neue Gesamtpunkte: ${data.neuePunkte}</p>
+                        `;
+                    }
+                    
+                    document.getElementById("result").style.display = "block";
+                }
             });
         }
 
-        window.onload = loadQuiz;
+        // Kategorien-Auswahl anzeigen
+        function showCategories() {
+            document.getElementById("result").style.display = "none";
+            document.getElementById("highscore-container").style.display = "none";
+            loadCategories();
+        }
+
+        // Highscores anzeigen
+        function showHighscores() {
+            fetch("/highscores")
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let highscoreList = document.getElementById("highscore-list");
+                    highscoreList.innerHTML = "";
+                    
+                    data.highscores.forEach((score, index) => {
+                        let li = document.createElement("li");
+                        if (index === 0) li.className = "rank-1";
+                        if (index === 1) li.className = "rank-2";
+                        if (index === 2) li.className = "rank-3";
+                        
+                        li.innerHTML = `
+                            <span>${index + 1}. ${score.NAME}</span>
+                            <span>${score.PUNKTE} Punkte</span>
+                        `;
+                        highscoreList.appendChild(li);
+                    });
+                    
+                    document.getElementById("result").style.display = "none";
+                    document.getElementById("highscore-container").style.display = "block";
+                }
+            });
+        }
     </script>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
