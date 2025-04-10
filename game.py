@@ -2,41 +2,11 @@ import random
 import json
 from holeKategorien import hole_kategorien
 from kategorieWahl import wähle_kategorie
+from holeFragen import hole_fragen
+from userAbfrage import hole_benutzer
 
-
-#Test-Änderung
-
-QUESTIONS = {
-    "Allgemeinwissen": [
-        {
-            "frage": "Was ist die Hauptstadt von Deutschland?",
-            "optionen": ["Berlin", "München", "Hamburg", "Köln"],
-            "antwort": "Berlin",
-        },
-        {
-            "frage": "Wie viele Planeten hat unser Sonnensystem?",
-            "optionen": ["7", "8", "9", "10"],
-            "antwort": "8",
-        },
-    ],
-    "Technologie": [
-        {
-            "frage": "Welche Programmiersprache wird oft für Data Science genutzt?",
-            "optionen": ["Java", "Python", "C++", "Ruby"],
-            "antwort": "Python",
-        },
-        {
-            "frage": "Was bedeutet HTML?",
-            "optionen": [
-                "HyperText Markup Language",
-                "High Tech Modern Language",
-                "Hyper Transfer Machine Learning",
-                "Home Tool Markup Language",
-            ],
-            "antwort": "HyperText Markup Language",
-        },
-    ],
-}
+login = int(input("(1) Anmelden\n(2) Account erstellen\n"))
+user_id = hole_benutzer(login)
 
 # Punktesystem
 punkte = 0
@@ -50,10 +20,8 @@ def show_help():
     print("- Beantworte die Fragen, indem du die richtige Antwort eingibst")
     print("- Für jede richtige Antwort gibt es Punkte\n")
 
-#Ich war hier
-
 # Spiel starten
-print("Willkommen zu BrainBuster! Wähle eine Kategorie:")
+print("Willkommen zu BrainBuster!\n")
 kategorien = hole_kategorien()
 wahl = wähle_kategorie(kategorien)
 
@@ -62,20 +30,23 @@ for kategorie in kategorien:
         ausgewaehlte_kategorie = kategorie[1]
 
 print(f"\nKategorie: {ausgewaehlte_kategorie}\n")
-fragen = QUESTIONS[ausgewaehlte_kategorie]
+
+fragen = hole_fragen(wahl)
 random.shuffle(fragen)
-
 for frage in fragen:
-        print(frage["frage"])
-        for idx, option in enumerate(frage["optionen"], start=1):
-            print(f"{idx}. {option}")
-        antwort = int(input("Deine Antwort (Nummer eingeben): ")) - 1
+        print(frage[0] + "\n")
+        antworten = frage[1:5]
+        shuffled_antworten = random.sample(antworten, len(antworten))
 
-        if frage["optionen"][antwort] == frage["antwort"]:
+        for antwort in shuffled_antworten:
+             print(antwort)
+        benutzerAntwort = input("Deine Antwort: ")
+
+        if frage[1] == benutzerAntwort:
             print("Richtig! Du erhältst 10 Punkte.\n")
             punkte += 10
         else:
-            print(f"Falsch! Die richtige Antwort wäre: {frage['antwort']}\n")
+            print(f"Falsch! Die richtige Antwort wäre: {frage[1]}\n")
 
 
 # Rangliste anzeigen
