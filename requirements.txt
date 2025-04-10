@@ -1,5 +1,2 @@
 pytest
 black
-flask
-mysql.connector
-random
