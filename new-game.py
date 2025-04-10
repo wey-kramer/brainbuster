@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, session
 import mysql.connector
+import random
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = "supersecretkey"  # Für Session-Management
