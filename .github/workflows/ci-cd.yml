@@ -3,10 +3,10 @@ name: BrainBuster CI/CD Pipeline
 on:
   push:
     branches:
-      - main
+      - FinalVersion
   pull_request:
     branches:
-      - main
+      - FinalVersion
 
 jobs:
   build:
@@ -38,11 +38,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/FinalVersion'
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v3
 
       - name: Deployment simulieren
         run: echo "Deployment erfolgreich!"
-        
