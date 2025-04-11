@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quizgame</title>
+    <title>BrainBuster Quiz</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         body {
@@ -12,6 +12,13 @@
             background-color: #f4f4f4;
             padding: 20px;
         }
+        .main-title {
+            font-size: 36px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
         #login-container, #category-container, #quiz-container, #result, #highscore-container {
             background: white;
             padding: 20px;
@@ -19,6 +26,7 @@
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
             width: 400px;
             margin: 20px auto;
+            position: relative;
         }
         input, button {
             width: 100%;
@@ -101,9 +109,42 @@
         .rank-3 {
             background-color: #cd7f32 !important;
         }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .button-group button {
+            flex: 1;
+        }
+        .highscore-btn {
+            background-color: #17a2b8;
+        }
+        .highscore-btn:hover {
+            background-color: #138496;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: auto;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+        .back-btn {
+            background-color: #6c757d;
+        }
+        .back-btn:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
+    <h1 class="main-title">BrainBuster</h1>
 
     <div id="login-container">
         <h2>Quizspiel Login</h2>
@@ -115,11 +156,14 @@
     </div>
 
     <div id="category-container" style="display: none;">
+        <button id="logout-btn-category" class="logout-btn" onclick="logout()">Logout</button>
         <h2>Wähle eine Kategorie</h2>
         <div id="category-buttons"></div>
+        <button class="highscore-btn" onclick="showHighscores()">Highscores anzeigen</button>
     </div>
 
     <div id="quiz-container" style="display: none;">
+        <button id="logout-btn-quiz" class="logout-btn" onclick="logout()">Logout</button>
         <h2 id="category-title"></h2>
         <div class="progress-container">
             <div id="progress-bar" class="progress-bar" style="width: 0%">0%</div>
@@ -130,17 +174,21 @@
     </div>
 
     <div id="result" style="display: none;">
+        <button id="logout-btn-result" class="logout-btn" onclick="logout()">Logout</button>
         <h2>Quiz beendet!</h2>
         <div class="score">Deine Punkte: <span id="final-score">0</span></div>
         <div id="score-change"></div>
-        <button onclick="showCategories()">Neues Spiel</button>
-        <button onclick="showHighscores()">Highscores</button>
+        <div class="button-group">
+            <button onclick="showCategories()">Neues Spiel</button>
+            <button class="highscore-btn" onclick="showHighscores()">Highscores</button>
+        </div>
     </div>
 
     <div id="highscore-container" style="display: none;">
+        <button id="logout-btn-highscore" class="logout-btn" onclick="logout()">Logout</button>
         <h2>Highscores</h2>
         <ul id="highscore-list"></ul>
-        <button onclick="showCategories()">Zurück zum Spiel</button>
+        <button class="back-btn" onclick="goBackFromHighscores()">Zurück</button>
     </div>
 
     <script>
@@ -150,6 +198,7 @@
         let score = 0;
         let answeredCurrentQuestion = false;
         let totalQuestions = 0;
+        let previousScreen = "category"; // Speichert, von welchem Screen die Highscores aufgerufen wurden
 
         // Event-Listener für Login-Formular
         document.getElementById("login-form").addEventListener("submit", function(event) {
@@ -174,6 +223,52 @@
                 }
             });
         });
+
+        // Logout-Funktion
+        function logout() {
+            fetch("/logout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Alle Container ausblenden außer Login
+                    document.getElementById("category-container").style.display = "none";
+                    document.getElementById("quiz-container").style.display = "none";
+                    document.getElementById("result").style.display = "none";
+                    document.getElementById("highscore-container").style.display = "none";
+                    // Login-Container anzeigen
+                    document.getElementById("login-container").style.display = "block";
+                    // Formularfelder zurücksetzen
+                    document.getElementById("username").value = "";
+                    document.getElementById("password").value = "";
+                } else {
+                    alert("Logout fehlgeschlagen: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Logout Fehler:", error);
+                alert("Etwas ist beim Logout schiefgelaufen.");
+                // Trotzdem zum Login weiterleiten bei Fehlern
+                document.getElementById("category-container").style.display = "none";
+                document.getElementById("quiz-container").style.display = "none";
+                document.getElementById("result").style.display = "none";
+                document.getElementById("highscore-container").style.display = "none";
+                document.getElementById("login-container").style.display = "block";
+            });
+        }
+
+        // Zurück-Navigation von Highscores
+        function goBackFromHighscores() {
+            document.getElementById("highscore-container").style.display = "none";
+            
+            if (previousScreen === "category") {
+                document.getElementById("category-container").style.display = "block";
+            } else if (previousScreen === "result") {
+                document.getElementById("result").style.display = "block";
+            }
+        }
 
         // Kategorien laden
         function loadCategories() {
@@ -270,9 +365,9 @@
             if (selected === correct) {
                 score += 10;
                 document.getElementById("current-score").innerText = score;
-                setTimeout(() => alert("Richtig! +10 Punkte"), 100);
+               // setTimeout(() => alert("Richtig! +10 Punkte"), 100);
             } else {
-                setTimeout(() => alert("Falsch! Die richtige Antwort ist: " + correct), 100);
+               // setTimeout(() => alert("Falsch! Die richtige Antwort ist: " + correct), 100);
             }
             
             // Next-Button einblenden
@@ -326,6 +421,13 @@
 
         // Highscores anzeigen
         function showHighscores() {
+            // Speichern des Bildschirms, von dem aus die Highscores aufgerufen wurden
+            if (document.getElementById("category-container").style.display === "block") {
+                previousScreen = "category";
+            } else if (document.getElementById("result").style.display === "block") {
+                previousScreen = "result";
+            }
+            
             fetch("/highscores")
             .then(response => response.json())
             .then(data => {
@@ -346,6 +448,7 @@
                         highscoreList.appendChild(li);
                     });
                     
+                    document.getElementById("category-container").style.display = "none";
                     document.getElementById("result").style.display = "none";
                     document.getElementById("highscore-container").style.display = "block";
                 }
